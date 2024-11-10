@@ -12,7 +12,6 @@ BUSYBOX_VERSION=1_33_1
 FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
 CROSS_COMPILE=aarch64-none-linux-gnu-
-
 if [ $# -lt 1 ]
 then
 	echo "Using default directory ${OUTDIR} for output"
@@ -42,6 +41,7 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
 fi
 
 echo "Adding the Image in outdir"
+cp ${OUT_DIR}/linux-stable/arch/${ARCH}/boot/Image ${OUT_DIR}
 
 echo "Creating the staging directory for the root filesystem"
 cd "$OUTDIR"
@@ -55,6 +55,7 @@ fi
 mkdir rootfs && cd rootfs
 mkdir home bin dev etc lib lib64 proc sys sbin tmp usr var 
 mkdir usr/bin usr/sbin var/log
+
 
 cd "$OUTDIR"
 if [ ! -d "${OUTDIR}/busybox" ]
@@ -94,16 +95,18 @@ sudo mknod -m 666 dev/null c 1 3
 sudo mknod -m 600 dev/console c 5 1
 
 # TODO: Clean and build the writer utility
-cd ~/assignments/assignment-1-tranhha/finder-app
+cd $FINDER_APP_DIR
 make clean
 make
 
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
 cp writer* finder.sh autorun-qemu.sh conf/username.txt conf/assignment.txt ${OUT_DIR}/rootfs/home
+
 # TODO: Chown the root directory
 cd ${OUT_DIR}/rootfs
 sudo chown -R root:root
+
 # TODO: Create initramfs.cpio.gz
 find . | cpio -H newc -ov --owner root:root > ${OUTDIR}/initramfs.cpio
 cd ${OUT_DIR}
