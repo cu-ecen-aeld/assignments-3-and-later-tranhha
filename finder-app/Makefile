@@ -2,6 +2,8 @@ CC=$(CROSS_COMPILE)gcc
 CFLAGS= -Wall
 TARGET= writer
 
+all: $(TARGET)
+
 $(TARGET): writer.o
 	$(CC) $(CFLAGS) -o $(TARGET) writer.o
 
