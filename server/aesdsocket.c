@@ -90,7 +90,7 @@ static void signal_handler(int sig_num)
 
 	
 		if (clientfd != -1){
-			close(socketfd);
+			close(clientfd);
 			printf("Client socket closed\n");
 			syslog(LOG_DEBUG, "Client socket closed");
 		}
@@ -115,9 +115,11 @@ int main(int argc, char *argv[])
 	int rc;
 	struct addrinfo hints, *servinfo, *p;
 	struct sockaddr_storage client_addr;
-	socklen_t addr_size;
+	socklen_t addr_size = sizeof(client_addr);
 	char s[INET_ADDRSTRLEN];
 	
+	openlog(NULL, 0, LOG_DEBUG);
+
 	struct sigaction sa;
 	memset(&sa, 0, sizeof(struct sigaction));
 	sa.sa_handler = signal_handler;
@@ -201,7 +203,7 @@ int main(int argc, char *argv[])
 		syslog(LOG_CRIT, "Accepted connection from %s\n", s);
 
 		//Communicate with the client
-		char recv_buffer[BUFFER_SIZE];
+		char recv_buffer[BUFFER_SIZE] = {0};
 		ssize_t bytes_received;
 		char *send_buffer;
 		char *start = recv_buffer;
@@ -211,22 +213,29 @@ int main(int argc, char *argv[])
 		while((bytes_received = recv(clientfd, recv_buffer, sizeof(recv_buffer) - 1, 0)) > 0){
 			//Check for newline to detect a complete packet
 			//for(size_t i = 0; i < bytes_received; i++){
+			if (bytes_received == sizeof(recv_buffer) - 1)
+				write(filefd, recv_buffer, bytes_received);		
+			else
+				recv_buffer[bytes_received] = '\0';
+
 			while((newline = strchr(start, '\n') ) != NULL){
 				ssize_t pktlen = newline - start + 1;
 				write(filefd, start, pktlen);
 			
 				file_size = lseek(filefd, 0, SEEK_END);
 				lseek(filefd, 0, SEEK_SET);
-				send_buffer = malloc(file_size);
+				send_buffer = calloc(1, file_size);
 					
 			
 				if(read(filefd, send_buffer, file_size) != file_size){
 					perror("Error reading file");
+					free(send_buffer);
 					break;
 				}
 
 				if(send(clientfd, send_buffer, file_size, 0) == -1){
 					perror("Error sending to client");
+					free(send_buffer);
 					break;
 				}
 				free(send_buffer);
